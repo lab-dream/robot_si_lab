@@ -262,6 +262,61 @@ python tools/inspect_dataset.py datasets/omy_pick_place
 - `inspect_dataset.py` 출력: 에피소드별 길이, 행동과 상태 차이, 행동 변화량, 그리퍼 동작 횟수, `previews/episode_XXX.gif` 미리보기
 - 실행 시 `torchcodec ... cannot decode videos` 경고: 이미지 저장 방식이라 무시 가능
 
+### 4-7. 학습된 정책 실행 (추론)
+
+- venv_lerobot에서 실행, 시뮬레이터용 mujoco와 robot_si 추가 설치 필요 (최초 1회)
+  - mujoco 버전은 venv_ros와 동일하게 지정
+
+```bash
+source ~/robot_si/venv_lerobot/bin/activate
+pip install "mujoco==$(~/robot_si/venv_ros/bin/python -c 'import mujoco; print(mujoco.__version__)')"
+pip install -e ~/robot_si_lab pytest
+```
+
+- 정책 폴더: `lerobot-train` 결과의 `.../checkpoints/<step>/pretrained_model` (config.json, model.safetensors, 전처리 설정 포함)
+- ROS 없이 시뮬레이터에서 직접 실행, 성공률 출력
+
+```bash
+cd ~/robot_si_lab
+python tools/run_policy.py outputs/act_omy/checkpoints/last/pretrained_model --episodes 10
+python tools/run_policy.py outputs/act_omy/checkpoints/last/pretrained_model --episodes 3 --viewer
+python tools/run_policy.py outputs/act_omy/checkpoints/last/pretrained_model --episodes 1 --gif outputs/policy.gif
+```
+
+- 한 스텝: 관절 7개와 카메라 2장 관측, 정책이 관절 목표 7개 출력, 50 ms 적용 (omy_sim과 같은 주기)
+- 성공 판정: 큐브가 파란 패드 위에 놓이고 그리퍼가 열린 상태
+- `--seed`: 큐브 위치 시작 시드 (기본 1000), 같은 시드로 정책 간 비교 가능
+- GPU 없으면 자동으로 CPU 사용 (`--device cpu`로 지정 가능)
+
+### 4-8. ROS 2로 정책 실행
+
+- 키보드 원격조작 자리에 정책 노드 연결: 관측 토픽 구독, `/joint_command` 발행
+- 터미널 1: 시뮬레이터 (환경 설정 후)
+
+```bash
+ros2 launch robot_si_ros omy_sim.launch.py
+```
+
+- 터미널 2: 정책 노드, ROS 2와 venv_lerobot을 함께 사용 (venv_ros 아님)
+
+```bash
+source /opt/ros/jazzy/setup.bash
+source ~/robot_si/venv_lerobot/bin/activate
+cd ~/robot_si_lab
+python tools/ros_policy.py outputs/act_omy/checkpoints/last/pretrained_model
+```
+
+- 터미널 3: 새 에피소드마다 큐브 위치 변경, 정책이 다시 집어서 이동
+
+```bash
+ros2 service call /omy/reset std_srvs/srv/Trigger
+```
+
+- 구독: `/joint_states`, `/front_cam/image_raw`, `/wrist_cam/image_raw` (같은 타임스탬프 3개가 모이면 1회 추론), `/omy/episode`
+- 발행: `/joint_command` 약 20 Hz
+- `/omy/reset` 시 정책의 행동 묶음(action chunk) 초기화
+- 정책 노드 종료(Ctrl+C) 후 로봇은 마지막 명령 자세 유지
+
 ## 5. 자동 점검
 
 - 강의 전 환경 점검용, 저장소 최상위에서 환경 설정 후 실행
@@ -276,6 +331,19 @@ bash tests/ros/test_record_demos.sh     # 약 60초, 마지막 줄에 bag 경로
 ```
 
 - 각 스크립트 마지막 줄 `PASS ...` 출력과 종료 코드 0 확인
+- 정책 실행 점검 (4-7절 설치 후): ROS를 source하지 않은 새 터미널에서 venv_lerobot으로 실행
+  - ROS의 pytest 플러그인(launch_testing)이 venv_lerobot에 없는 lark를 불러와 실패하기 때문
+
+```bash
+cd ~/robot_si_lab
+~/robot_si/venv_lerobot/bin/python -m pytest -q tests/test_policy.py   # 2 passed, 약 5초
+```
+
+- ROS 2 정책 노드 점검 (학습된 정책 필요, 환경 설정 후): 약 30초, 명령 주기와 큐브 이동 확인
+
+```bash
+bash tests/ros/test_ros_policy.sh outputs/act_omy/checkpoints/last/pretrained_model
+```
 
 ## 6. 문제 해결
 
@@ -296,7 +364,8 @@ robot_si/                MuJoCo 래퍼(sim.py, TF 좌표계 포함), 스크립�
 ros2_ws/src/robot_si_ros turtle_circle, pose_listener, turtle_task_server, omy_sim, omy_teleop_key,
                          scripted_demo, launch 파일
 scripts/record_demos.sh  rosbag2 녹화
-tools/                   bag_to_lerobot.py, inspect_dataset.py
+tools/                   bag_to_lerobot.py, inspect_dataset.py, policy_runner.py, run_policy.py,
+                         ros_policy.py
 tests/                   pytest 단위 테스트, tests/ros 통합 점검 스크립트
 ```
 
