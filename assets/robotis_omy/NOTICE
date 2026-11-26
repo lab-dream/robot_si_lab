@@ -1,0 +1,8 @@
+The OpenMANIPULATOR-Y (OMY) model in this folder comes from ROBOTIS robotis_mujoco_menagerie
+(https://github.com/ROBOTIS-GIT/robotis_mujoco_menagerie, folder robotis_omy, commit in UPSTREAM_COMMIT),
+licensed under the Apache License 2.0 (see LICENSE).
+
+Changes made for robot_si_lab:
+- omy.xml: added the "tcp" site and the "wrist_cam" camera on link6.
+- scene_tabletop.xml: new file (tabletop, cube, target pad, front camera).
+- omy.png removed.

@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "robot_si"
+version = "0.1.0"
+description = "OMY MuJoCo simulator and scripted tasks for the Robot SI imitation learning lab"
+requires-python = ">=3.10"
+dependencies = ["mujoco>=3.1", "numpy"]
+
+[tool.setuptools]
+packages = ["robot_si"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

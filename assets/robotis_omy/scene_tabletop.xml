@@ -1,0 +1,41 @@
+<!-- robot_si_lab tabletop scene: OMY arm, one cube to pick, one target pad, two cameras. -->
+<mujoco model="omy tabletop">
+  <include file="omy.xml"/>
+
+  <option timestep="0.002"/>
+  <statistic center="0.3 0 0.2" extent="0.8"/>
+
+  <visual>
+    <headlight diffuse="0.6 0.6 0.6" ambient="0.3 0.3 0.3" specular="0 0 0"/>
+    <global azimuth="150" elevation="-25" offwidth="640" offheight="480"/>
+    <!-- No MSAA and no shadows (see the light below): without a GPU, Mesa llvmpipe then renders
+         both 128 px cameras in about 35 ms instead of 150 ms, inside one 20 Hz control tick. -->
+    <quality offsamples="0"/>
+  </visual>
+
+  <asset>
+    <texture type="skybox" builtin="gradient" rgb1="0.3 0.5 0.7" rgb2="0 0 0" width="512" height="3072"/>
+    <texture type="2d" name="table" builtin="checker" mark="edge" rgb1="0.75 0.72 0.68" rgb2="0.7 0.67 0.63"
+      markrgb="0.5 0.5 0.5" width="300" height="300"/>
+    <material name="table" texture="table" texuniform="true" texrepeat="8 8"/>
+  </asset>
+
+  <worldbody>
+    <light pos="0.3 0 1.5" dir="0 0 -1" directional="true" castshadow="false"/>
+    <!-- The floor plane is the table top (z = 0). The robot base sits on it. -->
+    <geom name="table" size="0 0 0.05" type="plane" material="table"/>
+
+    <body name="cube" pos="0.35 0 0.02">
+      <freejoint name="cube"/>
+      <geom name="cube" type="box" size="0.02 0.02 0.02" rgba="0.85 0.2 0.2 1" mass="0.05"
+        friction="1.5 0.01 0.001" condim="4"/>
+    </body>
+
+    <!-- Target pad: visual only, the cube must end up on it. -->
+    <body name="target" pos="0.35 -0.2 0">
+      <geom name="target" type="cylinder" size="0.05 0.001" rgba="0.2 0.6 0.9 1" contype="0" conaffinity="0"/>
+    </body>
+
+    <camera name="front_cam" pos="0.95 0 0.55" xyaxes="0 1 0 -0.5 0 0.866" fovy="55"/>
+  </worldbody>
+</mujoco>
